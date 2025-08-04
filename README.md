@@ -23,13 +23,13 @@ streamlit run app.py
 ```
 Automatically open http://localhost:8501 in your browser.
 
-**Clean BBC sample**
+# Clean BBC sample**
 A 5000-row, already-cleaned BBC headline sample is included at
 data/bbc_clean_5k.csv (≈1 MB).
 If you ever re-clean the full dataset (data/bbc_news.csv), run
 python data/clean.py --in data/bbc_news.csv --out data/bbc_clean_5k.csv
 
-**File layout**
+# File layout**
 news-sentiment-dashboard/
 ├─ app.py
 ├─ requirements.txt
