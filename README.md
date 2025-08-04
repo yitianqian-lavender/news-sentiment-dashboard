@@ -30,6 +30,7 @@ If you ever re-clean the full dataset (data/bbc_news.csv), run
 python data/clean.py --in data/bbc_news.csv --out data/bbc_clean_5k.csv
 
 # File layout
+```text
 news-sentiment-dashboard/
 ├─ app.py
 ├─ requirements.txt
@@ -37,7 +38,9 @@ news-sentiment-dashboard/
 └─ data/
    ├─ clean_bbc_5k.csv
    └─ clean.py
-License
+```
+
+# License
 MIT – see LICENSE.
 
 Yitian Qian, “News Sentiment Trend Dashboard – CS688 Term Project”, Boston University, 2025.
