@@ -2,10 +2,11 @@
 News Sentiment Trend Dashboard
 by Yitian Qian
 
-This dashboard is a tool to analyze the sentiment of news articles.
-It uses the Lexicon and BERT models to analyze the sentiment of the news articles.
-It also uses the Guardian API to fetch the news articles.
-
+This dashboard analyzes the sentiment of news headlines.
+It supports two sentiment analysis engines:
+ 1) Lexicon-based model (VADER)
+ 2) Transformer-based model (DistilBERT)
+It also integrates with the Guardian Open-Platform API to fetch live news.
 """
 
 from datetime import date as _date
@@ -13,27 +14,30 @@ import time, requests, urllib.parse as ul
 import numpy as np, pandas as pd, plotly.express as px, streamlit as st
 import nltk
 import os
+
+# Download VADER lexicon (needed for SentimentIntensityAnalyzer)
 nltk.download("vader_lexicon")
 from nltk.sentiment import SentimentIntensityAnalyzer
 sia = SentimentIntensityAnalyzer()
 
-# Unified color map
+# Unified color mapping for charts (green: positive, red: negative, blue: neutral)
 COLOR_MAP = {
     "POSITIVE": "#2ca02c", "Positive": "#2ca02c",
     "NEGATIVE": "#d62728", "Negative": "#d62728",
     "Neutral": "#1f77b4"
 }
 
+# Utility: get today's date
 def today() -> _date: return _date.today()
 
+# Try to load Guardian API key from Streamlit secrets or env variable
 try:
     secret_key = st.secrets.get("GUARDIAN_KEY")
 except Exception:
     secret_key = None
-
 GUARDIAN_KEY = os.getenv("GUARDIAN_KEY", "")
 
-# Guardian API fetch with progress bar
+# Fetch headlines from Guardian API with progress bar
 def fetch_guardian(api_key: str, query: str, from_date=None, pages=3) -> pd.DataFrame:
     rows = []
     base = "https://content.guardianapis.com/search"
@@ -44,9 +48,11 @@ def fetch_guardian(api_key: str, query: str, from_date=None, pages=3) -> pd.Data
             "page-size": 200, "show-fields": "headline"
         }
         if from_date: params["from-date"] = from_date
+        # Make API request
         data = requests.get(f"{base}?{ul.urlencode(params)}", timeout=15).json()
         if data.get("response", {}).get("status") != "ok":
             st.warning(f"Guardian error: {data}"); break
+        # Collect title and publication date
         for itm in data["response"]["results"]:
             rows.append((itm["webTitle"], itm["webPublicationDate"][:10]))
         progress.progress(p / pages)
@@ -55,7 +61,7 @@ def fetch_guardian(api_key: str, query: str, from_date=None, pages=3) -> pd.Data
     progress.empty()
     return pd.DataFrame(rows, columns=["title", "date"])
 
-# Lexicon sentiment
+# Add VADER (Lexicon) sentiment labels to dataframe
 @st.cache_data(show_spinner="Scoring with VADER…")
 def add_lex(df):
     def vader_label(text):
@@ -65,7 +71,7 @@ def add_lex(df):
     out["lex_label"] = out["title"].astype(str).apply(vader_label)
     return out
 
-# BERT binary sentiment (SafeTensors)
+# Load DistilBERT model for binary sentiment classification
 @st.cache_resource
 def get_bert():
     from transformers import pipeline
@@ -74,6 +80,7 @@ def get_bert():
 
 bert_clf = get_bert()
 
+# Add BERT sentiment labels to dataframe
 @st.cache_data(show_spinner="Predicting with BERT…")
 def add_bert(df):
     out = df.copy()
@@ -81,13 +88,13 @@ def add_bert(df):
     out["bert_label"] = [p["label"].upper() for p in preds]
     return out
 
-# Daily count grouping
+# Group data by date and sentiment counts
 def daily_counts(data, col):
     tbl = data.groupby(["date", col]).size().unstack(fill_value=0)
     rng = pd.date_range(tbl.index.min(), tbl.index.max(), freq="D").date
     return tbl.reindex(rng, fill_value=0)
 
-# Line chart with smoothing toggle
+# Draw line chart with optional 7-day smoothing
 def line_chart(tbl, y_cols, title, smooth=True):
     tidy = tbl.reset_index().rename(columns={"index": "date"}) if "date" not in tbl.columns else tbl.copy()
     tidy = tidy.sort_values("date").loc[:, ~tidy.columns.duplicated()]
@@ -100,7 +107,8 @@ def line_chart(tbl, y_cols, title, smooth=True):
     fig.update_traces(line=dict(width=2))
     st.plotly_chart(fig, use_container_width=True)
 
-# Streamlit UI
+# ========== Streamlit UI ==========
+
 st.set_page_config(page_title="News Sentiment Dashboard", layout="wide")
 st.title("News Sentiment Trend Dashboard")
 
@@ -120,7 +128,7 @@ with st.sidebar:
     smooth_toggle = st.checkbox("7-day smoothing", value=True)
     pie_mode = st.selectbox("Pie chart labels", ["percent", "value", "percent+value"])
 
-# Load data
+# Load data: CSV or Guardian API
 raw_df = pd.DataFrame(columns=["title", "date"])
 if csv_file: raw_df = pd.read_csv(csv_file)
 if gd_fetch and gd_key and gd_query.strip():
@@ -131,21 +139,24 @@ if gd_fetch and gd_key and gd_query.strip():
     st.session_state.pop("date_slider", None)
 if raw_df.empty: st.warning("Upload a CSV or fetch headlines first."); st.stop()
 
+# Clean and filter data
 df = raw_df.copy()
 df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
 df = df.dropna(subset=["date"])
 if kw_filter: df = df[df["title"].str.contains(kw_filter, case=False, na=False)]
 if df.empty: st.warning("No rows match your filter."); st.stop()
 
+# Date range filter
 min_d, max_d = df["date"].min(), df["date"].max()
 d_start, d_end = st.slider("Date range", min_value=min_d, max_value=max_d,
                            value=(min_d, max_d), format="MMM DD YY", key="date_slider")
 df = df[(df["date"] >= d_start) & (df["date"] <= d_end)]
 
+# Add sentiment columns
 df = add_lex(df)
 if engine in ("BERT", "Compare"): df = add_bert(df)
 
-# KPIs
+# KPIs (summary metrics)
 st.metric("Date Range", f"{df['date'].min()} → {df['date'].max()}")
 avg_daily = len(df) / ((df['date'].max() - df['date'].min()).days + 1)
 st.metric("Avg daily headlines", f"{avg_daily:.1f}")
@@ -167,6 +178,7 @@ elif engine == "BERT":
     g = daily_counts(df, "bert_label")
     line_chart(g, ["POSITIVE", "NEGATIVE"], "Daily sentiment (BERT)", smooth_toggle)
 else:
+    # Compare Lexicon vs BERT (positive trend)
     lex_tbl = daily_counts(df, "lex_label")
     bert_tbl = daily_counts(df, "bert_label")
     lex_pos = lex_tbl.get("Positive", pd.Series(0, index=lex_tbl.index))
@@ -174,6 +186,7 @@ else:
     merged = pd.DataFrame({"date": lex_pos.index, "Lex_Pos": lex_pos.values, "BERT_Pos": bert_pos.values})
     line_chart(merged, ["Lex_Pos", "BERT_Pos"], "Positive trend — Lexicon vs BERT", smooth_toggle)
 
+    # Side-by-side pie charts
     col1, col2 = st.columns(2, gap="small")
     pie_lex = df["lex_label"].value_counts().rename_axis("label").reset_index(name="count")
     fig1 = px.pie(pie_lex, names="label", values="count", title="Lexicon polarity",
@@ -189,10 +202,11 @@ else:
     col2.plotly_chart(fig2, use_container_width=True)
     col2.metric("BERT Pos %", f"{df['bert_label'].eq('POSITIVE').mean():.0%}")
 
-# Download
+# Download processed data as CSV
 @st.cache_data
 def to_csv_bytes(dataframe: pd.DataFrame) -> bytes:
     return dataframe.to_csv(index=False).encode("utf-8")
+
 st.download_button("Download current CSV", to_csv_bytes(df),
                    "headlines_sentiment.csv", "text/csv")
 with st.expander(f"Raw data (showing {min(len(df),1000)} of {len(df)} rows)"):
