@@ -20,13 +20,13 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export GUARDIAN_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 streamlit run app.py
+```bash
 Automatically open http://localhost:8501 in your browser.
 
 **Clean BBC sample**
 A 5000-row, already-cleaned BBC headline sample is included at
 data/bbc_clean_5k.csv (≈1 MB).
 If you ever re-clean the full dataset (data/bbc_news.csv), run
-```bash
 python data/clean.py --in data/bbc_news.csv --out data/bbc_clean_5k.csv
 
 **File layout**
