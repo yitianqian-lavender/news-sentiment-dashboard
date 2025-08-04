@@ -20,7 +20,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export GUARDIAN_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 streamlit run app.py
-```bash
+```
 Automatically open http://localhost:8501 in your browser.
 
 **Clean BBC sample**
