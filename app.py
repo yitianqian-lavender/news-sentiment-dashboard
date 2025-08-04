@@ -31,8 +31,7 @@ try:
 except Exception:
     secret_key = None
 
-if not os.getenv("GUARDIAN_KEY") and secret_key:
-    os.environ["GUARDIAN_KEY"] = secret_key
+GUARDIAN_KEY = os.getenv("GUARDIAN_KEY", "")
 
 # Guardian API fetch with progress bar
 def fetch_guardian(api_key: str, query: str, from_date=None, pages=3) -> pd.DataFrame:
@@ -109,8 +108,7 @@ with st.sidebar:
     st.header("Upload CSV")
     csv_file = st.file_uploader("CSV with title & date columns", type="csv")
     st.header("Fetch from Guardian API")
-    default_key = os.getenv("GUARDIAN_KEY", "")
-    gd_key = st.text_input("Guardian key", value=default_key, type="password")
+    gd_key = st.text_input("Guardian key", value=GUARDIAN_KEY, type="password")
     gd_query = st.text_input("Keyword(s)", value="AI")
     gd_from = st.text_input("From date YYYY-MM-DD (optional)")
     gd_pages = st.slider("Pages (200 rows each)", 1, 20, 3)
