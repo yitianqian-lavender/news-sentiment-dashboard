@@ -25,6 +25,7 @@ Automatically open http://localhost:8501 in your browser.
 
 # Clean BBC sample
 A 5000-row, already-cleaned BBC headline sample is included at data/bbc_clean_5k.csv (≈1 MB).
+Here is the full data set source, you can download here: https://www.kaggle.com/datasets/gpreda/bbc-news
 If you ever re-clean the full dataset (data/bbc_news.csv), run 
 ```bash
 python data/clean.py --in data/bbc_news.csv --out data/bbc_clean_5k.csv
